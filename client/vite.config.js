@@ -11,11 +11,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // Ensure this matches your backend's URL and port
-        changeOrigin: true
+        target: 'http://localhost:3000', // Proxy /api requests to backend server on port 3000
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
   }

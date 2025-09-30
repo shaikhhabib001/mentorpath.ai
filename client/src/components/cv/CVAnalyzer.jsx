@@ -39,7 +39,14 @@ const CVAnalyzer = ({ analysis, loading, error }) => {
     );
   }
 
-  const { skills, experience, education, summary, confidence } = analysis;
+  // Defensive defaults to avoid runtime errors when fields are missing or in unexpected format
+  const {
+    skills = { technical: [], soft: [] },
+    experience = { roles: [], totalYears: 0 },
+    education = [],
+    summary = '',
+    confidence = 0
+  } = analysis || {};
 
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -89,17 +96,22 @@ const CVAnalyzer = ({ analysis, loading, error }) => {
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-3">Technical Skills</h4>
               <div className="flex flex-wrap gap-2">
-                {skills.technical.map((skill, index) => (
-                  <span 
-                    key={index}
-                    className="bg-mentor-teal text-white px-3 py-1 rounded-full text-sm font-medium"
-                  >
-                    {skill.name}
-                    {skill.confidence > 80 && (
-                      <span className="ml-1 text-xs">✓</span>
-                    )}
-                  </span>
-                ))}
+                {(skills.technical || []).map((skill, index) => {
+                  // skill can be a string or an object { name, confidence }
+                  const name = typeof skill === 'string' ? skill : (skill.name || skill.skill || '');
+                  const conf = typeof skill === 'object' && skill.confidence ? skill.confidence : 0;
+                  return (
+                    <span 
+                      key={index}
+                      className="bg-mentor-teal text-white px-3 py-1 rounded-full text-sm font-medium"
+                    >
+                      {name}
+                      {conf > 80 && (
+                        <span className="ml-1 text-xs"></span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
@@ -107,14 +119,17 @@ const CVAnalyzer = ({ analysis, loading, error }) => {
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-3">Soft Skills</h4>
               <div className="flex flex-wrap gap-2">
-                {skills.soft.map((skill, index) => (
-                  <span 
-                    key={index}
-                    className="bg-mentor-blue text-white px-3 py-1 rounded-full text-sm font-medium"
-                  >
-                    {skill.name}
-                  </span>
-                ))}
+                {(skills.soft || []).map((skill, index) => {
+                  const name = typeof skill === 'string' ? skill : (skill.name || skill.skill || '');
+                  return (
+                    <span 
+                      key={index}
+                      className="bg-mentor-blue text-white px-3 py-1 rounded-full text-sm font-medium"
+                    >
+                      {name}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>

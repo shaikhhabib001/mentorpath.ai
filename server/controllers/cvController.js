@@ -32,11 +32,11 @@ exports.uploadCV = async (req, res) => {
     const analysis = await AIService.analyzeCV(extractedText);
     const processingTime = Date.now() - startTime;
 
-    // Generate session ID for this analysis
-    const sessionId = CV.generateSessionId();
+  // Generate session ID for this analysis
+  const sessionId = CV.generateSessionId();
 
-    // Create CV record
-    const cvRecord = new CV({
+  // Create CV record
+  const cvRecord = new CV({
       sessionId: sessionId,
       originalName: req.file.originalname,
       storedName: req.file.filename,
@@ -51,8 +51,13 @@ exports.uploadCV = async (req, res) => {
 
     await cvRecord.save();
 
-    // Generate recommendations and missing skills
-    const enhancedAnalysis = await this.enhanceAnalysis(analysis, cvRecord._id);
+  // Generate recommendations and missing skills
+  // Call the local helper directly (was incorrectly using `this.enhanceAnalysis` which causes a runtime error)
+  const enhancedAnalysis = await enhanceAnalysis(analysis, cvRecord._id);
+
+  // Persist enhanced analysis back to the CV record for later retrieval
+  cvRecord.analysis = enhancedAnalysis;
+  await cvRecord.save();
 
     res.status(200).json({
       success: true,

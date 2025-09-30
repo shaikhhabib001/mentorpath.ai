@@ -176,24 +176,57 @@ class AIService {
 
   async callOpenAI(messages, temperature, maxTokens) {
     if (!this.openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
+      throw new Error('OpenAI API key not configured. Set OPENAI_API_KEY in your environment');
     }
 
-    const response = await axios.post(this.apiUrl, {
-      model: "gemini-2.5-flash",
-      messages: Array.isArray(messages) ? messages : [{ role: "user", content: messages }],
-      temperature: temperature,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" }
-    }, {
-      headers: {
-        'Authorization': `Bearer ${this.openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
+    // Determine endpoint. If apiUrl looks like the OpenAI base (ends with /v1),
+    // call the chat completions endpoint. Otherwise assume apiUrl is a full endpoint.
+    let endpoint = this.apiUrl;
+    try {
+      const normalized = String(this.apiUrl || '').replace(/\/+$/, '');
+      if (normalized.match(/openai\.com\/v1$/i)) {
+        endpoint = `${normalized}/chat/completions`;
+      } else if (normalized.match(/api\.openai\.com$/i)) {
+        endpoint = `${normalized}/v1/chat/completions`;
+      } else if (!normalized.match(/chat/i)) {
+        // If the configured API base doesn't include a specific path, default to OpenAI chat completions
+        endpoint = `${normalized}/chat/completions`;
+      }
+    } catch (e) {
+      endpoint = this.apiUrl;
+    }
+
+    const payload = {
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: Array.isArray(messages) ? messages : [{ role: 'user', content: messages }],
+      temperature,
+      max_tokens: maxTokens
+    };
+
+    const headers = {
+      'Authorization': `Bearer ${this.openaiApiKey}`,
+      'Content-Type': 'application/json'
+    };
+
+    const response = await axios.post(endpoint, payload, {
+      headers,
       timeout: 30000
     });
 
-    return response.data.choices[0].message.content;
+    // Support multiple response shapes. Prefer OpenAI chat-completions shape.
+    if (response?.data?.choices && response.data.choices[0]) {
+      const choice = response.data.choices[0];
+      // Chat completion message
+      if (choice.message && choice.message.content) return choice.message.content;
+      // Older completions might return text
+      if (choice.text) return choice.text;
+    }
+
+    // Fallback: try well-known fields
+    if (response?.data?.result?.content) return response.data.result.content;
+    if (response?.data?.output) return JSON.stringify(response.data.output);
+
+    throw new Error('Unexpected AI provider response format');
   }
 
   parseCVAnalysisResponse(response) {
